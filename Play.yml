@@ -1,0 +1,63 @@
+---
+
+- name: automation
+  hosts: [f5]
+  connection: local
+  gather_facts: true
+  vars:
+   provider:
+    server: "{{ F5_SERVER }}"
+    user: "{{ F5_USER }}"
+    password: "{{ F5_PASSWORD }}"
+    validate_certs: no
+   candk:
+    - c1: xxxx-cert
+      k1: xxxx-key
+      b1: xxxx-bdl
+
+  tasks:
+     - name: Expiration Check
+       shell: |
+        FILES1="/filepath/*-cert"
+        min=2
+        for f in $FILES1
+        do
+         date=$(openssl x509  -in $f -enddate -noout  | sed  "s/.*=\(.*\)/\1/" )
+         date_s=$(date -d "${date}" +%s)
+         #echo $date_s
+         now_s=$(date -d now +%s)
+         #echo $now_s
+         date_d=$(((date_s - now_s) /  86400 ))
+         #echo $date_d
+         if [[ $date_d -le $min ]]
+         then
+           echo $f
+         fi
+        done
+       register: output
+     - debug:
+         msg: "{{ output.stdout_lines }}"
+       when: output.changed
+       loop_control:
+        label: 'output'
+
+     - name: import CERT
+       bigip_ssl_certificate:
+        name:  "{{ item.c1}}"
+        state: present
+        content: "{{ lookup('file' , '{{ item.c1}}') }}"
+        provider: "{{ provider }}"
+       loop: "{{ candk }}"
+       delegate_to: localhost
+       when: 'item.c1 in output.stdout_lines'
+       register: certoutput
+
+     - name: import BUNDLE
+       bigip_ssl_certificate:
+        name:  "{{item.b1}}"
+        state: present
+        content: "{{ lookup('file' , '{{ item.b1 }}')  }}"
+        provider: "{{ provider }}"
+       loop: "{{ candk }}"
+       delegate_to: localhost
+       when: 'output.stdout_lines '
