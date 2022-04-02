@@ -6,7 +6,7 @@
 
 
 ## General info
-This project Automate F5 ssl profile configuration for domains and also checks for the expiration of certificates.
+This project Automate F5 ssl configuration for domains and also checks for the expiration of certificates.
 	
 ## Technologies
 Project is created with:
